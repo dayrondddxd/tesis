@@ -1,6 +1,5 @@
-from django.shortcuts import render
-
 # views.py
+from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,9 +7,7 @@ from .deepseek import create_moodle_user
 from .models import Integration  # Tu modelo de usuario local
 from .serializers import IntegrationSerializer  # Tu serializer
 
-
 # Create your views here.
-
 class UserCreateView(APIView):
     def post(self, request):
         # 1. Valida los datos del usuario en tu API
@@ -21,164 +18,88 @@ class UserCreateView(APIView):
         # 2. Guarda el usuario en tu base de datos
         user = serializer.save()
 
+ 
+  
 
-        # try:    
-        # # 3. Crea el usuario en Moodle
-        #     moodle_response = create_moodle_user(
-        #         username=user.username, 
-        #         password=request.data.get("password"), # Campo temporal (no guardes contraseñas en texto plano)
-        #         #password=user.password,             # password=request.data.get("password"), 
-        #         firstname=user.first_name,
-        #         lastname=user.last_name,
-        #         email=user.email,
-        #     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import requests
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.conf import settings
+
+class MoodleCompletedCourses(APIView):
+    def get(self, request, user_id):
+        # Configurar parámetros para la solicitud a Moodle
+        moodle_url = "http://localhost/moodle/webservice/rest/server.php"
         
-        #     # 4. Maneja errores de Moodle
-        #     if "exception" in moodle_response:
-        #         user.delete()  # Rollback si falla
-        #         return Response(
-        #             {"error": "Error en Moodle: " + moodle_response["message"]},
-        #             status=status.HTTP_502_BAD_GATEWAY,
-        #         )
+        params = {
+            'wstoken': "d7b823963e1a203d0010ecd8e7c73694",
+            'wsfunction': 'core_enrol_get_users_courses',
+            'moodlewsrestformat': "json",
+            'userid': user_id,
+            # 'courseid': 0  # Ajusta según la API de Moodle (ej: 0 para todos los cursos)
+        }
+
+# http://localhost/moodle/webservice/rest/server.php?
+# wstoken=d7b823963e1a203d0010ecd8e7c73694&wsfunction=core_enrol_get_users_courses&
+# userid=27&moodlewsrestformat=json
+
+        try:
+            # Realizar solicitud a Moodle
+            response = requests.get( moodle_url, params = params)
+            response.raise_for_status()  # Lanza error para respuestas no exitosas
             
-        #     # 5. Opcional: Guarda el ID de Moodle en tu modelo
-        #     user.moodle_id = moodle_response[19]["id"]
-        #     user.save()
-
-        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        # except Exception as e:
-        #         user.delete()  # Rollback
-        #         return Response(
-        #             {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        #         )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # views.py
-# import requests
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-
-
-
-
-# # from rest_framework import status
-# # from rest_framework.response import Response
-# # from rest_framework.views import APIView
-# # from .deepseek import create_moodle_user
-
-
-# from .models import User,Integration  # Tu modelo de usuario local
-# from .serializers import IntegrationSerializer  # Tu serializer
-
-# class UserCreateView(APIView):
-#     def post(self, request):
-#         # 1. Valida los datos del usuario en tu API
-#         serializer = IntegrationSerializer(data=request.data)
-#         if not serializer.is_valid():
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#         # 
-#         # 2. Guarda el usuario en tu base de datos
-#         user = serializer.save()
-
-# class CreateUserInMoodleView(APIView):
-#     def post(self, request, *args, **kwargs):
-#         # URL del servicio web de Moodle
-#         moodle_url = "http://localhost/moodle/webservice/rest/server.php"  # [[4]]
-#         token = "573a77f131d2d81a4dec40a22513a9e6"  # Reemplaza con tu token
+            # Procesar la respuesta de Moodle
+            data = response.json()
+            print(data)
+
+             # Verifica si la respuesta es una lista
+            if not isinstance(data, list):
+                return Response({"error": "Respuesta inválida de Moodle"}, status=500)
+
+            # Filtra cursos completados (progreso 100%)
+            completed_courses = [
+                course['fullname'] 
+                for course in data 
+                if course.get('progress', 0) == 100
+            ]
+
+            if not completed_courses:
+                return Response({"message": "El usuario no tiene cursos completados"}, status=200)
+
+            return Response({"completed_courses": completed_courses}, status=status.HTTP_200_OK)
+
+        except requests.exceptions.RequestException as e:
+            return Response(
+                {'error': f'Error al conectar con Moodle: {str(e)}'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
         
 
         
-#         # Parámetros para la API de Moodle
-#         params = {
-#             "wstoken": token,
-#             "wsfunction": "core_user_create_users",  # Función para crear usuarios [[4]]
-#             "moodlewsrestformat": "json",
-#             "users[3]": user_data,  # Moodle espera un array de usuarios
-#         }
-
-#         # Datos del usuario (ajusta según tu modelo de Django)
-#         user_data = {    
-#             # "username": request.data.get("username"),
-#             "username":User.username,
-#             "password": request.data.get("password"),
-#             "firstname": request.data.get("first_name"),
-#             "lastname": request.data.get("last_name"),
-#             "email": request.data.get("email"),
-#             "auth": "manual",  # Método de autenticación de Moodle [[3]]
-#         }
-
-
-# #   {
-#     # "id": 5,
-#     # "username": "dayrondd"
-# #   }
-
-
-#         try:
-#             # Envía la solicitud POST a Moodle
-#             response = requests.post(moodle_url, data=params)
-#             response.raise_for_status()  # Lanza error si hay un fallo HTTP
-            
-#             # Respuesta de Moodle (devuelve el ID del usuario creado)
-#             return Response(response.json(), status=status.HTTP_201_CREATED)
-        
-#         except requests.exceptions.RequestException as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
