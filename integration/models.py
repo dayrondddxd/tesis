@@ -14,18 +14,21 @@ class Integration(models.Model):
 
 
 
-# from django.db import models
-# from django.contrib.auth.models import User
-
-# class UserProfile(models.Model):
-#     user = models.OneToOneField(User, on_delete=models.CASCADE)
-#     moodle_id = models.IntegerField(unique=True)
-#     completed_courses = models.JSONField(default=list)  # Almacena IDs de cursos
-    
-#     def __str__(self):
-#         return f"{self.user.username} - Moodle ID: {self.moodle_id}"
 
 
+
+class MoodleQuizAttempt(models.Model):
+    id = models.BigIntegerField(primary_key=True)
+    quiz = models.BigIntegerField()  # ID del cuestionario en Moodle (mdl_quiz)
+    userid = models.BigIntegerField()  # ID del usuario en Moodle (mdl_user)
+    state = models.CharField(max_length=100)
+    timestart = models.BigIntegerField()
+    timefinish = models.BigIntegerField()
+    sumgrades = models.FloatField()  # Calificación obtenida
+
+    class Meta:
+        db_table = 'mdl_quiz_attempts'
+        managed = False
 
 
 

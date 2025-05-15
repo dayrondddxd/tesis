@@ -102,4 +102,125 @@ class MoodleCompletedCourses(APIView):
             )
         
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# views.py
+import requests
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+class MoodleQuiz(APIView):
+    def get(self, request, user_id, course_id):
+        MOODLE_URL = "http://localhost/moodle/webservice/rest/server.php"
+        MOODLE_TOKEN = "d7b823963e1a203d0010ecd8e7c73694"  # Usa variables de entorno en producción
+
+        # Paso 1: Obtener cuestionarios del curso
+        quizzes_params = {
+            'wstoken': MOODLE_TOKEN,
+            'wsfunction': 'mod_quiz_get_quizzes_by_courses',
+            'moodlewsrestformat': 'json',
+            'courseids[0]': course_id
+        }
+
+        try:
+            # Obtener cuestionarios del curso
+            quizzes_response = requests.get(MOODLE_URL, params=quizzes_params)
+            quizzes_data = quizzes_response.json()
+
+            # Manejar errores de Moodle
+            if 'exception' in quizzes_data:
+                return Response(
+                    {"error": f"Moodle: {quizzes_data['message']}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Si no hay cuestionarios en el curso
+            if not quizzes_data.get('quizzes'):
+                return Response(
+                    {"message": "El curso no tiene cuestionarios"},
+                    status=status.HTTP_200_OK
+                )
+            # Paso 2: Obtener intentos del usuario en cada cuestionario
+            all_attempts = []
+            for quiz in quizzes_data['quizzes']:
+                quiz_id = quiz['id']
+
+                # Parámetros para obtener intentos
+                attempts_params = {
+                    'wstoken': MOODLE_TOKEN,
+                    'wsfunction': 'mod_quiz_get_user_attempts',
+                    'moodlewsrestformat': 'json',
+                    'quizid': quiz_id,
+                    'userid': user_id
+                }
+
+                attempts_response = requests.get(MOODLE_URL, params=attempts_params)
+                attempts_data = attempts_response.json()
+
+                if 'attempts' in attempts_data:
+                    # Agregar metadata del cuestionario
+                    for attempt in attempts_data['attempts']:
+                        attempt['quiz_name'] = quiz['name']
+                        attempt['course_id'] = course_id
+                    all_attempts.extend(attempts_data['attempts'])
+
+            return Response({
+                "user_id": user_id,
+                "course_id": course_id,
+                "attempts": all_attempts
+            })
         
+        except requests.exceptions.RequestException as e:
+            return Response(
+                {"error": f"Error de conexión: {str(e)}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error interno: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

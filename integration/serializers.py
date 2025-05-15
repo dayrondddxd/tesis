@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Integration
+from .models import MoodleQuizAttempt
 
 class IntegrationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,4 +10,7 @@ class IntegrationSerializer(serializers.ModelSerializer):
 
 
 
-        
+class QuizResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MoodleQuizAttempt
+        fields = ['id', 'quiz', 'userid', 'state', 'sumgrades', 'timefinish']
